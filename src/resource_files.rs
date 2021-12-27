@@ -105,11 +105,10 @@ impl HttpServiceFactory for ResourceFiles {
     }
 }
 
-impl ServiceFactory for ResourceFiles {
-    type Config = ();
-    type Request = ServiceRequest;
+impl ServiceFactory<ServiceRequest> for ResourceFiles {
     type Response = ServiceResponse;
     type Error = Error;
+    type Config = ();
     type Service = ResourceFilesService;
     type InitError = ();
     type Future = LocalBoxFuture<'static, Result<Self::Service, Self::InitError>>;
@@ -138,25 +137,24 @@ impl Deref for ResourceFilesService {
     }
 }
 
-impl<'a> Service for ResourceFilesService {
-    type Request = ServiceRequest;
+impl<'a> Service<ServiceRequest> for ResourceFilesService {
     type Response = ServiceResponse;
     type Error = Error;
     type Future = Ready<Result<Self::Response, Self::Error>>;
 
-    fn poll_ready(&mut self, _: &mut Context) -> Poll<Result<(), Self::Error>> {
+    fn poll_ready(&self, _: &mut Context) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))
     }
 
-    fn call(&mut self, req: ServiceRequest) -> Self::Future {
+    fn call(&self, req: ServiceRequest) -> Self::Future {
         match *req.method() {
             Method::HEAD | Method::GET => (),
             _ => {
                 return ok(ServiceResponse::new(
                     req.into_parts().0,
                     HttpResponse::MethodNotAllowed()
-                        .header(header::CONTENT_TYPE, "text/plain")
-                        .header(header::ALLOW, "GET, HEAD")
+                        .insert_header((header::CONTENT_TYPE, "text/plain"))
+                        .insert_header((header::ALLOW, "GET, HEAD"))
                         .body("This resource only supports GET and HEAD."),
                 ));
             }
@@ -214,10 +212,10 @@ fn respond_to(req: &HttpRequest, item: Option<&Resource>) -> HttpResponse {
         let not_modified = !none_match(etag.as_ref(), req);
 
         let mut resp = HttpResponse::build(StatusCode::OK);
-        resp.set_header(header::CONTENT_TYPE, file.mime_type);
+        resp.insert_header((header::CONTENT_TYPE, file.mime_type));
 
         if let Some(etag) = etag {
-            resp.set(header::ETag(etag));
+            resp.insert_header(header::ETag(etag));
         }
 
         if precondition_failed {
