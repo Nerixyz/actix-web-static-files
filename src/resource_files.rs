@@ -160,7 +160,7 @@ impl<'a> Service<ServiceRequest> for ResourceFilesService {
             }
         }
 
-        let req_path = req.match_info().path();
+        let req_path = req.match_info().as_str();
 
         let mut item = self.files.get(req_path);
 
@@ -201,7 +201,7 @@ impl<'a> Service<ServiceRequest> for ResourceFilesService {
 
 fn respond_to(req: &HttpRequest, item: Option<&Resource>) -> HttpResponse {
     if let Some(file) = item {
-        let etag = Some(header::EntityTag::strong(format!(
+        let etag = Some(header::EntityTag::new_strong(format!(
             "{:x}:{:x}",
             file.data.len(),
             file.modified
